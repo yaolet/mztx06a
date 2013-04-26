@@ -497,8 +497,8 @@ void fb_load_640x480_zoom(FILE *infile)
     // Read in framebuffer
     fseek(infile, 0, 0);
     
-    if (fread (buffer, xsize * ysize *2, sizeof(unsigned char), infile) != 1)
-        printf ("Read < %d chars when loading file /dev/fb0\n", hsize*vsize*2);
+    if (fread (buffer, 640*480*2, sizeof(unsigned char), infile) != 1)
+        printf ("Read < %d chars when loading file /dev/fb0\n", 640*480*2);
     
     numdiff=0;
     diffex=diffey=0;
@@ -568,9 +568,39 @@ void fb_load_640x480_zoom(FILE *infile)
         }
         
     }
+}
 
-
-
+void lcd_display_buf()
+{
+    if (numdiff< 1000){
+        for (i=diffsx; i<=diffex; i++){
+            for (j=diffsy;j<=diffey; j++) {
+                if (diffmap[i][j]!=0)
+                    write_dot(i,j,drawmap[flag][i][j]);
+            }
+        }
+        //usleep(70000L);
+        
+    } else{
+        LCD_WR_CMD(XS,diffsy);
+        LCD_WR_CMD(YS,diffsx);
+        LCD_WR_CMD(XE,diffey);
+        LCD_WR_CMD(YE,diffex);
+        
+        LCD_WR_CMD(XP,diffsy);
+        LCD_WR_CMD(YP,diffsx);
+        // LCD_WR_CMD( 0x003, 0x1238 );
+        LCD_WR_REG(0x202);
+        LCD_CS_CLR;
+        LCD_RS_SET;
+        //printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
+        for (i=diffsx; i<=diffex; i++){
+            for (j=diffsy;j<=diffey; j++) {
+                LCD_WR_Data(drawmap[flag][i][j]);
+            }
+        }
+    }
+    
 }
 
 void loadFrameBuffer_diff()
