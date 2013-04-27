@@ -4,7 +4,7 @@ mztx06a
 Raspberry Pi mztx06a LCD library
 
 
-I know, most part of the code are messy and un-organised.  Global variables are flying around; quick and dirty hacks everywhere.  But should you still have interest poking around, here is a brief step-by-step guide
+I know, most parts of the code are messy and un-organised.  Global variables are flying around; quick and dirty hacks everywhere.  But should you still have interest poking around, here is a brief step-by-step guide
 
 First make sure your Pi is running in a low-resolution (currently support 640x480, 320x240).  If you are really new to this Raspberry pi thingy and don't know what to do, I'll give you a pointer, just type 
 
