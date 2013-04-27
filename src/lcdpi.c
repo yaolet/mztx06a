@@ -466,7 +466,7 @@ int diffmap[240][320];
 int diffsx, diffsy, diffex, diffey;
 int numdiff=0;
 int diffarea;
-int *buffer;
+unsigned char *buffer;
 int buffersize=-1;
 int flag;
 
@@ -481,9 +481,9 @@ void fb_load_640x480_zoom(FILE *infile)
     unsigned long offset=0;
 
     switch (buffersize){
-            640:
-                break;
-            -1:
+        case 640:
+            break;
+        case -1:
             buffer = (unsigned char *)malloc(640*480*2);
             buffersize=640;
             break;
@@ -500,13 +500,13 @@ void fb_load_640x480_zoom(FILE *infile)
     if (fread (buffer, 640*480*2, sizeof(unsigned char), infile) != 1)
         printf ("Read < %d chars when loading file /dev/fb0\n", 640*480*2);
     
-    numdiff=0;
-    diffex=diffey=0;
-    diffsx=diffsy=65535;
+//    numdiff=0;
+//    diffex=diffey=0;
+//    diffsx=diffsy=65535;
     
-    for(i=0; i < ysize; i+=2){
-        for(j=0; j < xsize; j+=2) {
-            offset =  (i * xsize+ j)*2;
+    for(i=0; i < 480; i+=2){
+        for(j=0; j < 640; j+=2) {
+            offset =  (i * 640+ j)*2;
             p=(buffer[offset+1] << 8) | buffer[offset];
             r = (p & RGB565_MASK_RED) >> 11;
             g = (p & RGB565_MASK_GREEN) >> 5;
@@ -515,7 +515,7 @@ void fb_load_640x480_zoom(FILE *infile)
             r <<= 1;
             b <<= 1;
             
-            offset = ( (i+1) * xsize +j )*2;
+            offset = ( (i+1) * 640 +j )*2;
             p=(buffer[offset+1] << 8) | buffer[offset];
             r1 = (p & RGB565_MASK_RED) >> 11;
             g1 = (p & RGB565_MASK_GREEN) >> 5;
@@ -525,7 +525,7 @@ void fb_load_640x480_zoom(FILE *infile)
             g += g1;
             b += b1 <<1;
             
-            offset = ( i*xsize + j+1)*2;
+            offset = ( i*640 + j+1)*2;
             p=(buffer[offset+1] << 8) | buffer[offset];
             r1 = (p & RGB565_MASK_RED) >> 11;
             g1 = (p & RGB565_MASK_GREEN) >> 5;
@@ -535,7 +535,7 @@ void fb_load_640x480_zoom(FILE *infile)
             g += g1;
             b += b1 <<1;
             
-            offset=((i+1)*xsize + j+1)*2;
+            offset=((i+1)*640 + j+1)*2;
             p=(buffer[offset+1] << 8) | buffer[offset];
             r1 = (p & RGB565_MASK_RED) >> 11;
             g1 = (p & RGB565_MASK_GREEN) >> 5;
@@ -547,31 +547,111 @@ void fb_load_640x480_zoom(FILE *infile)
             
             p=RGB565(r, g, b);
             
-            //drawmap[flag][i>>1][j>>1] = p;
-            if (drawmap[1-flag][i>>1][j>>1] != p) {
-                drawmap[flag][i>>1][j>>1] = p;
-                diffmap[i>>1][j>>1]=1;
-                drawmap[1-flag][i>>1][j>>1]=p;
-                numdiff++;
-                if ((i>>1) < diffsx)
-                    diffsx = i>>1;
-                if ((i>>1) > diffex)
-                    diffex = i >> 1;
-                if ((j>>1)< diffsy)
-                    diffsy=j>>1;
-                if ((j>>1)>diffey)
-                    diffey = j >>1;
-                
-            } else {
-                diffmap[i>>1][j>>1]=0;
-            }
-        }
-        
+            drawmap[flag][i>>1][j>>1] = p;
+//            if (drawmap[1-flag][i>>1][j>>1] != p) {
+//                drawmap[flag][i>>1][j>>1] = p;
+//                diffmap[i>>1][j>>1]=1;
+//                drawmap[1-flag][i>>1][j>>1]=p;
+//                numdiff++;
+//                if ((i>>1) < diffsx)
+//                    diffsx = i>>1;
+//                if ((i>>1) > diffex)
+//                    diffex = i >> 1;
+//                if ((j>>1)< diffsy)
+//                    diffsy=j>>1;
+//                if ((j>>1)>diffey)
+//                    diffey = j >>1;
+//                
+//            } else {
+//                diffmap[i>>1][j>>1]=0;
+//            }
+        }        
     }
 }
 
+
+void fb_load_640x480_window(FILE *infile, int sx, int sy)
+{
+    int p;
+	int r1,g1,b1;
+	int r,g,b;
+    
+    int i,j,k;
+    unsigned long offset=0;
+    
+    switch (buffersize){
+        case 640:
+            break;
+        case -1:
+            buffer = (unsigned char *)malloc(640*480*2);
+            buffersize=640;
+            break;
+        default:
+            free(buffer);
+            buffer =(unsigned char *)malloc(640*480*2);
+            buffersize=640;
+            break;
+    }
+    // Read in framebuffer
+    fseek(infile, 0, 0);
+    
+    if (fread (buffer, 640*480*2, sizeof(unsigned char), infile) != 1)
+        printf ("Read < %d chars when loading file /dev/fb0\n", 640*480*2);
+    
+    //    numdiff=0;
+    //    diffex=diffey=0;
+    //    diffsx=diffsy=65535;
+    
+    for(i=sy; i < sy+240; i++){
+        for(j=sx; j < sx+320; j++) {
+            offset =  (i * 640+ j)*2;
+            p=(buffer[offset+1] << 8) | buffer[offset];
+
+            drawmap[flag][i-sy][j-sx] = p;
+        }
+    }
+}
+
+
+void lcd_get_diff()
+{
+    int i,j;
+    
+    numdiff=0;
+    diffex=diffey=0;
+    diffsx=diffsy=65535;
+    
+    for (i=0; i < 240; i++)
+        for (j=0; j < 320; j++) {
+            if (drawmap[1-flag][i][j] != drawmap[flag][i][j]) {
+                diffmap[i][j]=1;
+                //drawmap[1-flag][i][j]=drawmap[flag][;
+                numdiff++;
+                if ((i) < diffsx)
+                    diffsx = i;
+                if ((i) > diffex)
+                    diffex = i ;
+                if ((j)< diffsy)
+                    diffsy=j;
+                if ((j)>diffey)
+                    diffey = j;
+                
+            } else {
+                diffmap[i][j]=0;
+            }
+        }
+}
+
+void lcd_buffer_flip()
+{
+    flag = 1 - flag;
+}
+
+
 void lcd_display_buf()
 {
+    int i,j;
+    
     if (numdiff< 1000){
         for (i=diffsx; i<=diffex; i++){
             for (j=diffsy;j<=diffey; j++) {
@@ -600,6 +680,54 @@ void lcd_display_buf()
             }
         }
     }
+    
+}
+
+
+void lcd_run()
+{
+    FILE *infile = fopen("/dev/fb0","rb");
+    printf("this is cool\n");
+    int wx=0, wy=0;
+    int changeflag=0;
+    
+    while (wx < 220){
+        
+        fb_load_640x480_window(infile,wx,wy);
+        lcd_get_diff();
+        if (numdiff > 0){
+            lcd_display_buf();
+            lcd_buffer_flip();
+            wx=wx+5;
+        }
+        printf("current window (%d, %d)\n",wx, wy);
+    }
+    
+    while (wy < 240){
+        
+        fb_load_640x480_window(infile,wx,wy);
+        lcd_get_diff();
+        if (numdiff > 0){
+            lcd_display_buf();
+            lcd_buffer_flip();
+          
+        }
+        wy=wy+5;
+        printf("current window (%d, %d)\n",wx, wy);
+    }
+    
+    while (1 == 1){
+        
+        fb_load_640x480_zoom(infile);
+        lcd_get_diff();
+        if (numdiff > 0){
+            lcd_display_buf();
+            lcd_buffer_flip();
+            
+        }
+        printf("current window (%d, %d)\n",wx, wy);
+    }
+
     
 }
 
@@ -1308,7 +1436,8 @@ int main (void)
     //  for (;;)
     //{
 	LCD_Init();
-	loadFrameBuffer_diff();
+	//loadFrameBuffer_diff();
+    lcd_run();
 	//LCD_showbuffer();
 	//LCD_test();
 	//LCD_clear(RGB565(130,130,150));
