@@ -12,10 +12,10 @@ First make sure your Pi is running in a low-resolution (currently support 640x48
 
 try fix your eyeballs on something look like:
 
-> # uncomment to force a console size. By default it will be display's size minus
-> # overscan.
-> # framebuffer_width=xxxx
-> # framebuffer_height=xxx
+> \# uncomment to force a console size. By default it will be display's size minus
+> \# overscan.
+> \# framebuffer_width=xxxx
+> \# framebuffer_height=xxx
 
 now uncomment the last 2 lines and change it to either
 
