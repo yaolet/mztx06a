@@ -12,28 +12,36 @@ First make sure your Pi is running in a low-resolution (currently support 640x48
 
 try fix your eyeballs on something look like:
 
-# uncomment to force a console size. By default it will be display's size minus
-# overscan.
-# framebuffer_width=xxxx
-# framebuffer_height=xxx
+> # uncomment to force a console size. By default it will be display's size minus
+> # overscan.
+> # framebuffer_width=xxxx
+> # framebuffer_height=xxx
 
 now uncomment the last 2 lines and change it to either
 
-framebuffer_width=320
-framebuffer_height=240
+> framebuffer_width=320
+> framebuffer_height=240
 
 If you prefer a blurry console nightmare, try 
 
-framebuffer_width=640
-framebuffer_height=480
+> framebuffer_width=640
+> framebuffer_height=480
 
 Beaware this won't make your LCD bigger, nor it has some retina-like hidden pixels like your iPhone.  The program will just squeeze 4 pixels into 1.
 
-Now Ctrl-X and yes to save the changes.  Don't get panic if nothing shows up on the screen.  Try 'sudo reboot' and start live your life in good-old 80s fashion screen (You might wonder what's the whole point of getting a HD screen at this point).
+Now Ctrl-X and yes to save the changes.  Don't get panic if nothing shows up on the screen.  Try 
+
+> sudo reboot
+
+and start live your life in good-old 80s fashion screen (You might wonder what's the whole point of getting a HD screen at this point).
 
 To compile, go to whatever the directory you store my precious git, and 'cd src'.  type 'make', no news is good news.
 
-To run, root priviledge is required: 'sudo ./mztx06a';  then let there be light.
+To run, root priviledge is required: 
+
+> sudo ./mztx06a
+
+then let there be light.
 
 If the light is incorrect, check the main(), for 320x240 resolution,  ues loadFrameBuffer_diff_320(), drop _320 if the resolution is 640x480.
 
