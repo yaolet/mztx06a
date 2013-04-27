@@ -32,7 +32,7 @@ If you prefer a blurry console nightmare, try
 
 > framebuffer_height=480
 
-Beaware this won't make your LCD bigger, nor it has some retina-like hidden pixels like your iPhone.  The program will just squeeze 4 pixels into 1.
+Beware this won't make your LCD bigger, nor it has some retina-like hidden pixels like your iPhone.  The program will just squeeze 4 pixels into 1.
 
 Now Ctrl-X and yes to save the changes.  Don't get panic if nothing shows up on the screen.  Try 
 
