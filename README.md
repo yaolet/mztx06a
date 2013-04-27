@@ -23,11 +23,13 @@ try fix your eyeballs on something look like:
 now uncomment the last 2 lines and change it to either
 
 > framebuffer_width=320
+
 > framebuffer_height=240
 
 If you prefer a blurry console nightmare, try 
 
 > framebuffer_width=640
+
 > framebuffer_height=480
 
 Beaware this won't make your LCD bigger, nor it has some retina-like hidden pixels like your iPhone.  The program will just squeeze 4 pixels into 1.
