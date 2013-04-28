@@ -2,9 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <termios.h>
+#include <fcntl.h>
+
 #include <string.h>
 #include <sys/timeb.h>
-
+#include <pthread.h>
+//#include <sys/filio.h>
 #include "ascii hex(8x16).h"
 #include "GB2312.h"
 
@@ -16,6 +21,9 @@
 #define RGB565_MASK_RED        0xF800
 #define RGB565_MASK_GREEN    0x07E0
 #define RGB565_MASK_BLUE       0x001F
+
+#define FULLSCREEN 1
+#define WINDOWED 0
 
 
 #ifdef    ROTATE90
@@ -461,6 +469,8 @@ void loadFrameBuffer_ave()
     }
 }
 
+
+// ------------------------------------------------------------------
 int drawmap[2][240][320];
 int diffmap[240][320];
 int diffsx, diffsy, diffex, diffey;
@@ -469,6 +479,8 @@ int diffarea;
 unsigned char *buffer;
 int buffersize=-1;
 int flag;
+int wx=0,wy=0;
+int screen_mode=0;
 
 
 void fb_load_640x480_zoom(FILE *infile)
@@ -652,15 +664,14 @@ void lcd_display_buf()
 {
     int i,j;
     
-    if (numdiff< 1000){
+    if (numdiff< 700){
         for (i=diffsx; i<=diffex; i++){
             for (j=diffsy;j<=diffey; j++) {
                 if (diffmap[i][j]!=0)
                     write_dot(i,j,drawmap[flag][i][j]);
             }
         }
-        //usleep(70000L);
-        
+        usleep(50000L);
     } else{
         LCD_WR_CMD(XS,diffsy);
         LCD_WR_CMD(YS,diffsx);
@@ -669,7 +680,7 @@ void lcd_display_buf()
         
         LCD_WR_CMD(XP,diffsy);
         LCD_WR_CMD(YP,diffsx);
-        // LCD_WR_CMD( 0x003, 0x1238 );
+    
         LCD_WR_REG(0x202);
         LCD_CS_CLR;
         LCD_RS_SET;
@@ -680,56 +691,144 @@ void lcd_display_buf()
             }
         }
     }
-    
+
 }
 
+
+int kbhit(void)
+{
+    struct termios oldt, newt;
+    int ch;
+    int oldf;
+    
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+    
+    ch = getchar();
+    
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+    
+    if(ch != EOF)
+    {
+        ungetc(ch, stdin);
+        return 1;
+    }
+    
+    return 0;
+}
+//int kbhit()
+//{
+//    unsigned char ch;
+//    int nread;
+//    
+//    if (peek_character != -1) return 1;
+//    new_settings.c_cc[VMIN]=0;
+//    tcsetattr(0, TCSANOW, &new_settings);
+//    nread = read(0,&ch,1);
+//    new_settings.c_cc[VMIN]=1;
+//    tcsetattr(0, TCSANOW, &new_settings);
+//    if(nread == 1)
+//    {
+//        peek_character = ch;
+//        return 1;
+//    }
+//    return 0;
+//}
+
+
+void *get_input()
+{
+    FILE *fp = fopen ("/dev/stdin", "rb");
+    char c;
+    printf ("hello, we started");
+    while (1==1) {
+        while (!kbhit()){usleep(50000);}
+        c = getchar();
+        if (c==0|| c==255) exit(0);
+        usleep(5000L);
+        printf("%d",c);
+        switch(tolower(c)) {
+            case 'a' :
+                screen_mode=WINDOWED;
+                if (wx  > 0 )
+                    wx = 0;
+                break;
+            case 's' :
+                screen_mode=WINDOWED;
+                if (wy < 239)
+                    wy=239;
+                break;
+            case 'd' :
+                screen_mode=WINDOWED;
+                if (wx < 319)
+                    wx=319;
+                break;
+            case 'w' :
+                screen_mode=WINDOWED;
+                if (wy > 0)
+                    wy=0;
+                break;
+            case 'c' :
+                screen_mode=WINDOWED;
+                wx = 160;wy=120;break;
+            case 'x' :
+                screen_mode=1-screen_mode;
+                break;
+            case '1' :
+                screen_mode=WINDOWED;
+                wx=0; wy=0;
+                break;
+            case '2' :
+                screen_mode=WINDOWED;
+                wx=319; wy=0;
+                break;
+            case '3' :
+                screen_mode=WINDOWED;
+                wx=0; wy=239;
+                break;
+            case '4' :
+                screen_mode=WINDOWED;
+                wx=319;
+                wy=239;
+                break;
+            case 0:
+                exit(0);
+                
+        }
+    }
+}
 
 void lcd_run()
 {
     FILE *infile = fopen("/dev/fb0","rb");
     printf("this is cool\n");
-    int wx=0, wy=0;
+    
     int changeflag=0;
     
-    while (wx < 220){
-        
-        fb_load_640x480_window(infile,wx,wy);
-        lcd_get_diff();
-        if (numdiff > 0){
-            lcd_display_buf();
-            lcd_buffer_flip();
-            wx=wx+5;
-        }
-        printf("current window (%d, %d)\n",wx, wy);
-    }
-    
-    while (wy < 240){
-        
-        fb_load_640x480_window(infile,wx,wy);
-        lcd_get_diff();
-        if (numdiff > 0){
-            lcd_display_buf();
-            lcd_buffer_flip();
-          
-        }
-        wy=wy+5;
-        printf("current window (%d, %d)\n",wx, wy);
-    }
-    
     while (1 == 1){
-        
-        fb_load_640x480_zoom(infile);
+        switch (screen_mode){
+            case FULLSCREEN :
+                fb_load_640x480_zoom(infile);
+                break;
+            case WINDOWED :
+                fb_load_640x480_window(infile, wx, wy);
+                break;
+        }
         lcd_get_diff();
         if (numdiff > 0){
             lcd_display_buf();
             lcd_buffer_flip();
-            
         }
-        printf("current window (%d, %d)\n",wx, wy);
+        else usleep(40000L);
+      //  printf("current window (%d, %d)\n",wx, wy);
     }
-
-    
 }
+
 
 void loadFrameBuffer_diff()
 {
@@ -1147,55 +1246,6 @@ void LCD_Init()
 	LCD_WR_CMD( 0x007, 0x0113 );
 }
 
-void LCD_test()
-{
-	int temp,num,i;
-	char n;
-    
-	LCD_WR_CMD(XS,0x00);
-	LCD_WR_CMD(YS,0x0000);
-	LCD_WR_CMD(XE,MAX_X);
-	LCD_WR_CMD(YE,MAX_Y);
-    
-	LCD_WR_CMD(XP,0x0000);
-	LCD_WR_CMD(YP,0x0000);
-    
-	LCD_WR_REG(0x202);
-	LCD_CS_CLR;
-	LCD_RS_SET;
-	for(n=0;n<8;n++)
-	{
-	    temp=color[n];
-		for(num=40*240;num>0;num--)
-		{
-			LCD_WR_Data(temp);
-		}
-	}
-	for(n=0;n<8;n++)
-	{
-		LCD_WR_CMD(XS,0x00);
-		LCD_WR_CMD(YS,0x0000);
-		LCD_WR_CMD(XE,MAX_X);
-		LCD_WR_CMD(YE,MAX_Y);
-        
-		LCD_WR_CMD(XP,0x0000);
-		LCD_WR_CMD(YP,0x0000);
-        
-		LCD_WR_REG(0x202);
-		LCD_CS_CLR;
-		LCD_RS_SET;
-	    temp=color[n];
-		for(i=0;i<240;i++)
-		{
-			for(num=0;num<320;num++)
-			{
-		  		LCD_WR_Data(temp);
-			}
-		}
-	}
-	LCD_CS_SET;
-}
-
 
 
 void LCD_clear(int p)
@@ -1407,6 +1457,8 @@ void draw_circle(int x, int y, int r,int color)
 
 int main (void)
 {
+    pthread_t thread_id;
+    
     printf("bcm2835 init now\n");
     if (!bcm2835_init())
     {
@@ -1437,6 +1489,8 @@ int main (void)
     //{
 	LCD_Init();
 	//loadFrameBuffer_diff();
+    pthread_create( &thread_id, NULL, get_input, NULL );
+
     lcd_run();
 	//LCD_showbuffer();
 	//LCD_test();
