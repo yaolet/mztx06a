@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/timeb.h>
 #include <pthread.h>
-//#include <sys/filio.h>
+
 #include "ascii hex(8x16).h"
 #include "GB2312.h"
 
@@ -481,7 +481,7 @@ int buffersize=-1;
 int flag;
 int wx=0,wy=0;
 int screen_mode=0;
-
+int move_to_cursor=0;
 
 void fb_load_640x480_zoom(FILE *infile)
 {
@@ -639,13 +639,13 @@ void lcd_get_diff()
                 diffmap[i][j]=1;
                 //drawmap[1-flag][i][j]=drawmap[flag][;
                 numdiff++;
-                if ((i) < diffsx)
+                if (i < diffsx)
                     diffsx = i;
-                if ((i) > diffex)
+                if (i > diffex)
                     diffex = i ;
-                if ((j)< diffsy)
+                if (j < diffsy)
                     diffsy=j;
-                if ((j)>diffey)
+                if (j > diffey)
                     diffey = j;
                 
             } else {
@@ -671,7 +671,7 @@ void lcd_display_buf()
                     write_dot(i,j,drawmap[flag][i][j]);
             }
         }
-        usleep(50000L);
+        usleep(10000L);
     } else{
         LCD_WR_CMD(XS,diffsy);
         LCD_WR_CMD(YS,diffsx);
@@ -752,6 +752,9 @@ void *get_input()
         if (c==0|| c==255) exit(0);
         usleep(5000L);
         printf("%d",c);
+        
+        // here is a lot of controlls
+    
         switch(tolower(c)) {
             case 'a' :
                 screen_mode=WINDOWED;
@@ -796,6 +799,9 @@ void *get_input()
                 wx=319;
                 wy=239;
                 break;
+            case 'u' :
+                move_to_cursor = 1 - move_to_cursor;
+                break;
             case 0:
                 exit(0);
                 
@@ -820,6 +826,24 @@ void lcd_run()
                 break;
         }
         lcd_get_diff();
+        
+        if (move_to_cursor == 1) {
+            diffarea = ((abs(diffex - diffsx)+1)*(1+abs(diffey-diffsy)));
+
+            if (numdiff < 300 & numdiff * 1.0 / diffarea > 0.1) {
+                
+                printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
+                if (diffex > 210) {printf("shit\n");wy +=80;}
+                if (diffey > 280) wx +=80;
+                if (diffex < 25) wy -=80;
+                if (diffey < 25) wx -=80;
+                if (wx>319) wx=319;
+                if (wy>239) wy=239;
+                if (wx<0) wx=0;
+                if (wy<0) wy=0;
+                printf("current window (%d, %d)\n",wx, wy);
+            }
+        }
         if (numdiff > 0){
             lcd_display_buf();
             lcd_buffer_flip();
