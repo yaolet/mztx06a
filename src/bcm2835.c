@@ -525,6 +525,43 @@ void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len)
     bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
 }
 
+
+// For LCD screen bulk write
+void bcm2835_spi_drawint(int* tbuf,  uint32_t len)
+{
+    volatile uint32_t* paddr = spi0 + BCM2835_SPI0_CS/4;
+    volatile uint32_t* fifo = spi0 + BCM2835_SPI0_FIFO/4;
+    
+    // This is Polled transfer as per section 10.6.1
+    // BUG ALERT: what happens if we get interupted in this section, and someone else
+    // accesses a different peripheral?
+    // Clear TX and RX fifos
+    bcm2835_peri_set_bits(paddr, BCM2835_SPI0_CS_CLEAR, BCM2835_SPI0_CS_CLEAR);
+    
+    // Set TA = 1
+    bcm2835_peri_set_bits(paddr, BCM2835_SPI0_CS_TA, BCM2835_SPI0_CS_TA);
+    
+    uint32_t i;
+    for (i = 0; i < len; i++)
+    {
+//        bcm2835_peri_write_nb(fifo, tbuf[i] >> 8);
+//        bcm2835_peri_read_nb(fifo);
+//        bcm2835_peri_write_nb(fifo, tbuf[i]);
+//        bcm2835_peri_read_nb(fifo);
+        *fifo = tbuf[i] >> 8;
+        *fifo;
+        *fifo = tbuf[i];
+        *fifo;
+    }
+    // Wait for DONE to be set
+    while (!(bcm2835_peri_read_nb(paddr) & BCM2835_SPI0_CS_DONE))
+        delayMicroseconds(10);
+    
+    // Set TA = 0, and also set the barrier
+    bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
+}
+
+
 // Writes (and reads) an number of bytes to SPI
 // Read bytes are copied over onto the transmit buffer
 void bcm2835_spi_transfern(char* buf, uint32_t len)

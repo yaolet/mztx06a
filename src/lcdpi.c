@@ -25,6 +25,7 @@
 #define FULLSCREEN 1
 #define WINDOWED 0
 
+void bcm2835_spi_drawint(int* tbuf,  uint32_t len);
 
 #ifdef    ROTATE90
 #define XP    0x0201
@@ -308,172 +309,15 @@ void write_dot(char dx,int dy,int color)
 }
 
 
-void loadFrameBuffer_ave()
-{
-    int  xsize=640, ysize=480;
-    unsigned char *buffer;
-    FILE *infile=fopen("/dev/fb0","rb");
-    long fp;
-    int i,j,k;
-    unsigned long offset=0;
-    int p;
-	int r1,g1,b1;
-	int r,g,b;
-	long minsum=0;
-	long nowsum=0;
-    int flag;
-	int ra,ga,ba;
-    int drawmap[2][ysize/2][xsize/2];
-    int diffmap[ysize/2][xsize/2];
-    int diffsx, diffsy, diffex, diffey;
-    int numdiff=0;
-    int area;
-    
-	buffer = (unsigned char *) malloc(xsize * ysize * 2);
-    fseek(infile, 0, 0);
-    
-    if (fread (buffer, xsize * ysize *2, sizeof(unsigned char), infile) != 1)
-        printf ("Read < %d chars when loading file %s\n", hsize*vsize*3, "ss");
-    
-    LCD_WR_CMD(XS,0x00);
-    LCD_WR_CMD(YS,0x0000);
-    LCD_WR_CMD(XE,MAX_X);
-    LCD_WR_CMD(YE,MAX_Y);
-    
-    LCD_WR_CMD(XP,0x0000);
-    LCD_WR_CMD(YP,0x0000);
-    
-    LCD_WR_REG(0x202);
-    LCD_CS_CLR;
-    LCD_RS_SET;
-    
-    for (i=0; i < ysize/2; i++) {
-        for(j=0; j< xsize/2; j++) {
-            diffmap[i][j]=1;
-            drawmap[0][i][j]=0;
-            LCD_WR_Data(0);
-            drawmap[1][i][j]=255;
-        }
-    }
-    
-    flag=1;
-    
-    while (1) {
-        
-        numdiff=0;
-        flag=1-flag;
-        diffex=diffey=0;
-        diffsx=diffsy=65535;
-        
-        for(i=0; i < ysize; i+=2){
-            for(j=0; j < xsize; j+=2) {
-                offset =  (i * xsize+ j)*2;
-                p=(buffer[offset+1] << 8) | buffer[offset];
-                r = (p & RGB565_MASK_RED) >> 11;
-                g = (p & RGB565_MASK_GREEN) >> 5;
-                b = (p & RGB565_MASK_BLUE);
-                
-                r <<= 1;
-                b <<= 1;
-                
-                offset = ( (i+1) * xsize +j )*2;
-                p=(buffer[offset+1] << 8) | buffer[offset];
-                r1 = (p & RGB565_MASK_RED) >> 11;
-                g1 = (p & RGB565_MASK_GREEN) >> 5;
-                b1 = (p & RGB565_MASK_BLUE);
-                
-                r += r1<<1;
-                g += g1;
-                b += b1 <<1;
-                
-                offset = ( i*xsize + j+1)*2;
-                p=(buffer[offset+1] << 8) | buffer[offset];
-                r1 = (p & RGB565_MASK_RED) >> 11;
-                g1 = (p & RGB565_MASK_GREEN) >> 5;
-                b1 = (p & RGB565_MASK_BLUE);
-                
-                r += r1<<1;
-                g += g1;
-                b += b1 <<1;
-                
-                offset=((i+1)*xsize + j+1)*2;
-                p=(buffer[offset+1] << 8) | buffer[offset];
-                r1 = (p & RGB565_MASK_RED) >> 11;
-                g1 = (p & RGB565_MASK_GREEN) >> 5;
-                b1 = (p & RGB565_MASK_BLUE);
-                
-                r += r1<<1;
-                g += g1;
-                b += b1 <<1;
-                
-                p=RGB565(r, g, b);
-                
-                //drawmap[flag][i>>1][j>>1] = p;
-                if (drawmap[1-flag][i>>1][j>>1] != p) {
-                    drawmap[flag][i>>1][j>>1] = p;
-                    diffmap[i>>1][j>>1]=1;
-                    drawmap[1-flag][i>>1][j>>1]=p;
-                    numdiff++;
-                    if ((i>>1) < diffsx)
-                        diffsx = i>>1;
-                    if ((i>>1) > diffex)
-                        diffex = i >> 1;
-                    if ((j>>1)< diffsy)
-                        diffsy=j>>1;
-                    if ((j>>1)>diffey)
-                        diffey = j >>1;
-                    
-                } else {
-                    diffmap[i>>1][j>>1]=0;
-                }
-            }
-            
-        }
-        if (numdiff > 10){
-           // printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
-            
-            area = ((abs(diffex - diffsx)+1)*(1+abs(diffey-diffsy)));
-            printf("diff:%d, area:%d, cov:%f\n",numdiff, area,(1.0*numdiff)/area);
-        }
-        if (numdiff< 1000){
-            for (i=diffsx; i<=diffex; i++){
-                for (j=diffsy;j<=diffey; j++) {
-                    if (diffmap[i][j]!=0)
-                        write_dot(i,j,drawmap[flag][i][j]);
-                }
-            }
-        } else{
-            LCD_WR_CMD(XS,diffsy);
-            LCD_WR_CMD(YS,diffsx);
-            LCD_WR_CMD(XE,diffey);
-            LCD_WR_CMD(YE,diffex);
-            
-            LCD_WR_CMD(XP,diffsy);
-            LCD_WR_CMD(YP,diffsx);
-            // LCD_WR_CMD( 0x003, 0x1238 );
-            LCD_WR_REG(0x202);
-            LCD_CS_CLR;
-            LCD_RS_SET;
-            //printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
-            for (i=diffsx; i<=diffex; i++){
-                for (j=diffsy;j<=diffey; j++) {
-                    LCD_WR_Data(drawmap[flag][i][j]);
-                }
-            }
-        }
-        
-        fseek(infile, 0, 0);
-        
-        if (fread (buffer, xsize * ysize *2, sizeof(unsigned char), infile) != 1)
-            printf ("Read < %d chars when loading file %s\n", hsize*vsize*3, "ss");
-    }
-}
+
 
 
 // ------------------------------------------------------------------
 int drawmap[2][240][320];
 int diffmap[240][320];
 int diffsx, diffsy, diffex, diffey;
+int diffwidth;
+
 int numdiff=0;
 int diffarea;
 unsigned char *buffer;
@@ -482,6 +326,7 @@ int flag;
 int wx=0,wy=0;
 int screen_mode=0;
 int move_to_cursor=0;
+char *quickbuf;
 
 void fb_load_640x480_zoom(FILE *infile)
 {
@@ -652,6 +497,9 @@ void lcd_get_diff()
                 diffmap[i][j]=0;
             }
         }
+    diffwidth = diffey-diffsy+1;
+    diffarea =  diffwidth*(diffex-diffsx+1);
+    
 }
 
 void lcd_buffer_flip()
@@ -663,15 +511,15 @@ void lcd_buffer_flip()
 void lcd_display_buf()
 {
     int i,j;
-    
-    if (numdiff< 700){
+    uint32_t offset;
+
+    if (numdiff< 50){
         for (i=diffsx; i<=diffex; i++){
             for (j=diffsy;j<=diffey; j++) {
                 if (diffmap[i][j]!=0)
                     write_dot(i,j,drawmap[flag][i][j]);
             }
         }
-        usleep(10000L);
     } else{
         LCD_WR_CMD(XS,diffsy);
         LCD_WR_CMD(YS,diffsx);
@@ -685,13 +533,13 @@ void lcd_display_buf()
         LCD_CS_CLR;
         LCD_RS_SET;
         //printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
+        offset=0;
         for (i=diffsx; i<=diffex; i++){
-            for (j=diffsy;j<=diffey; j++) {
-                LCD_WR_Data(drawmap[flag][i][j]);
-            }
+            memcpy ((char*)(quickbuf+offset), drawmap[flag][i] + (diffsy), diffwidth*sizeof(int));
+            offset+=diffwidth*sizeof(int);
         }
+        bcm2835_spi_drawint((int *)quickbuf, diffarea);
     }
-
 }
 
 
@@ -721,37 +569,18 @@ int kbhit(void)
     
     return 0;
 }
-//int kbhit()
-//{
-//    unsigned char ch;
-//    int nread;
-//    
-//    if (peek_character != -1) return 1;
-//    new_settings.c_cc[VMIN]=0;
-//    tcsetattr(0, TCSANOW, &new_settings);
-//    nread = read(0,&ch,1);
-//    new_settings.c_cc[VMIN]=1;
-//    tcsetattr(0, TCSANOW, &new_settings);
-//    if(nread == 1)
-//    {
-//        peek_character = ch;
-//        return 1;
-//    }
-//    return 0;
-//}
 
 
 void *get_input()
 {
     FILE *fp = fopen ("/dev/stdin", "rb");
     char c;
-    printf ("hello, we started");
+
     while (1==1) {
-        while (!kbhit()){usleep(50000);}
+        while (!kbhit()){usleep(60000);}
         c = getchar();
         if (c==0|| c==255) exit(0);
         usleep(5000L);
-        printf("%d",c);
         
         // here is a lot of controlls
     
@@ -812,8 +641,8 @@ void *get_input()
 void lcd_run()
 {
     FILE *infile = fopen("/dev/fb0","rb");
-    printf("this is cool\n");
-    
+
+    quickbuf = (char *) malloc(sizeof(int)*320*240);
     int changeflag=0;
     
     while (1 == 1){
@@ -826,14 +655,14 @@ void lcd_run()
                 break;
         }
         lcd_get_diff();
-        
+
         if (move_to_cursor == 1) {
             diffarea = ((abs(diffex - diffsx)+1)*(1+abs(diffey-diffsy)));
 
             if (numdiff < 300 & numdiff * 1.0 / diffarea > 0.1) {
                 
-                printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
-                if (diffex > 210) {printf("shit\n");wy +=80;}
+//                printf ("(%d, %d) - (%d, %d)\n",diffsx, diffsy, diffex, diffey);
+                if (diffex > 210) wy +=80;
                 if (diffey > 280) wx +=80;
                 if (diffex < 25) wy -=80;
                 if (diffey < 25) wx -=80;
@@ -841,15 +670,23 @@ void lcd_run()
                 if (wy>239) wy=239;
                 if (wx<0) wx=0;
                 if (wy<0) wy=0;
-                printf("current window (%d, %d)\n",wx, wy);
+//                printf("current window (%d, %d)\n",wx, wy);
             }
         }
         if (numdiff > 0){
+            
             lcd_display_buf();
+
             lcd_buffer_flip();
         }
-        else usleep(40000L);
-      //  printf("current window (%d, %d)\n",wx, wy);
+        else {
+            diffarea = 8;
+            usleep(10000);
+        }
+        
+        usleep(10076800.0/(23+diffarea*diffarea));
+
+        //  printf("current window (%d, %d)\n",wx, wy);
     }
 }
 
