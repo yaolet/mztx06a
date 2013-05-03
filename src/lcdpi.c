@@ -681,11 +681,11 @@ void lcd_run()
         }
         else {
             diffarea = 8;
-            usleep(10000);
+            usleep(40000);
         }
         
-        usleep(10076800.0/(23+diffarea*diffarea));
-
+        //usleep(10076800.0/(23+diffarea*diffarea));
+        usleep(10000L);
         //  printf("current window (%d, %d)\n",wx, wy);
     }
 }
