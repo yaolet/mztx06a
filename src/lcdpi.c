@@ -685,7 +685,7 @@ void lcd_run()
         }
         
         //usleep(10076800.0/(23+diffarea*diffarea));
-        usleep(10000L);
+//        usleep(10000L);
         //  printf("current window (%d, %d)\n",wx, wy);
     }
 }

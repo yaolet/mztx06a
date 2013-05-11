@@ -100,3 +100,4 @@ while True:
     time.sleep(button_delay)
 
   sys.stdout.flush()
+  time.sleep(0.07)
